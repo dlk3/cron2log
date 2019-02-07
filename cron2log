@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+import subprocess
+import shlex
+from optparse import OptionParser
+import datetime
+import time
+
+#  Calculate elapsed time and return it as a pretty string.
+#  "start" must be a time.time() value.
+def elapsedTime(start):
+	end = time.time()
+	hours, rem = divmod(end-start, 3600)
+	minutes, seconds = divmod(rem, 60)
+	outstr = "{} seconds".format(int(round(seconds)))
+	if minutes > 0:
+		label = 'minutes'
+		if minutes == 1:
+			label = 'minute'
+		outstr = "{} {}, {}".format(int(minutes), label, outstr)
+	if hours > 0:
+		label = 'hours'
+		if hours == 1:
+			label = 'hour'
+		outstr = "{} {}, {}".format(int(hours), label, outstr)
+	return outstr
+        
+usage = '\033[00;01m%prog\033[00m [-a] "command_string" "log_file"'
+description = 'Execute a command string and capture any output in a log file.'
+parser = OptionParser(usage=usage, description=description)
+parser.add_option('-a', '--append', action='store_true', dest='append', default=False, help='Append output to the log file if it already exists, instead of starting a new file.')
+parser.add_option('-i', '--ignore_error', action='store_true', dest='ignore_error', default=False, help='Do not report errors to whoever called us, just write them to the log and exit with return code 0')
+(opts, args) = parser.parse_args()
+
+if len(args) != 2:
+	print "Two command arguments are required, the command string to execute and the log file into which to write its output"
+	exit(1)
+	
+cmd_string = args[0]
+log_filename = args[1]
+
+if opts.append:
+	logfile = open(log_filename, 'a')
+else:
+	logfile = open(log_filename, 'w')
+
+start_time = time.time()
+
+now = datetime.datetime.now()
+logfile.write("{}\n".format(''.join(c*80 for c in '#')))
+logfile.write("{} COMMAND STARTS: {}\n".format(now.strftime('%Y-%m-%d %H:%M:%S'), cmd_string))
+logfile.write("{}\n".format(''.join(c*80 for c in '#')))
+
+try:
+	cmd = shlex.split(cmd_string)
+	logfile.write(subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True))
+except subprocess.CalledProcessError as e:
+	logfile.write(e.output)
+	now = datetime.datetime.now()
+	logfile.write("{}\n".format(''.join(c*80 for c in '#')))
+	logfile.write("{} COMMAND REPORTED ERROR: {}\n".format(now.strftime('%Y-%m-%d %H:%M:%S'), elapsedTime(start_time)))
+	if not opts.ignore_error:
+		print "\"{}\" command returned non-zero exit status {}, see {} log file for details".format(cmd_string, e.returncode, log_filename)
+		exit(e.returncode)
+
+now = datetime.datetime.now()
+logfile.write("{}\n".format(''.join(c*80 for c in '#')))
+logfile.write("{} COMMAND ENDS: {}\n".format(now.strftime('%Y-%m-%d %H:%M:%S'), elapsedTime(start_time)))
