@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 import subprocess
 import shlex
 from optparse import OptionParser
@@ -33,7 +37,7 @@ parser.add_option('-i', '--ignore_error', action='store_true', dest='ignore_erro
 (opts, args) = parser.parse_args()
 
 if len(args) != 2:
-	print "Two command arguments are required, the command string to execute and the log file into which to write its output"
+	print("Two command arguments are required, the command string to execute and the log file into which to write its output")
 	exit(1)
 	
 cmd_string = args[0]
@@ -53,14 +57,15 @@ logfile.write("{}\n".format(''.join(c*80 for c in '#')))
 
 try:
 	cmd = shlex.split(cmd_string)
-	logfile.write(subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True))
+	result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+	logfile.write(str(result.stdout, 'utf-8'))
 except subprocess.CalledProcessError as e:
 	logfile.write(e.output)
 	now = datetime.datetime.now()
 	logfile.write("{}\n".format(''.join(c*80 for c in '#')))
 	logfile.write("{} COMMAND REPORTED ERROR: {}\n".format(now.strftime('%Y-%m-%d %H:%M:%S'), elapsedTime(start_time)))
 	if not opts.ignore_error:
-		print "\"{}\" command returned non-zero exit status {}, see {} log file for details".format(cmd_string, e.returncode, log_filename)
+		print("\"{}\" command returned non-zero exit status {}, see {} log file for details".format(cmd_string, e.returncode, log_filename))
 		exit(e.returncode)
 
 now = datetime.datetime.now()
